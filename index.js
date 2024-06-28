@@ -23,6 +23,9 @@ const meshHTTP = createServeRuntime({
   graphqlEndpoint: "/",
   proxy: {
     endpoint: process.env.UPSTREAM,
+    headers: (ctx) => ({
+      authorization: ctx.context.request?.headers.get("authorization"),
+    }),
   },
   plugins: (ctx) => {
     const armorLogger = ctx.logger.child("Armor");
