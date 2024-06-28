@@ -1,0 +1,26 @@
+{
+  "name": "whatever",
+  "version": "1.0.0",
+  "type": "module",
+  "author": "Valentin Cocaud (v.cocaud@gmail.com",
+  "private": true,
+  "main": "./index.js",
+  "scripts": {
+    "deploy": "gcloud functions deploy graphql --gen2 --runtime=nodejs20 --source=. --trigger-http --allow-unauthenticated"
+  },
+  "dependencies": {
+    "@escape.tech/graphql-armor": "^3.0.0",
+    "@google-cloud/functions-framework": "^3.4.0",
+    "@graphql-mesh/cache-localforage": "^0.98.9",
+    "@graphql-mesh/plugin-hive": "^0.98.11",
+    "@graphql-mesh/plugin-response-cache": "^0.98.10",
+    "@graphql-mesh/serve-runtime": "^0.4.3",
+    "@graphql-mesh/utils": "^0.98.9",
+    "@graphql-yoga/plugin-jwt": "^2.4.0",
+    "@types/node": "^20.10.6",
+    "graphql": "^16.8.1",
+    "prettier": "^3.3.2",
+    "typescript": "^5.4.2"
+  },
+  "packageManager": "pnpm@8.15.5+sha512.b051a32c7e695833b84926d3b29b8cca57254b589f0649d899c6e9d0edb670b91ec7e2a43459bae73759bb5ce619c3266f116bf931ce22d1ef1759a7e45aa96f"
+}
