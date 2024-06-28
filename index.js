@@ -24,12 +24,20 @@ const meshHTTP = createServeRuntime({
   proxy: {
     endpoint: process.env.UPSTREAM,
     headers: (ctx) => ({
-      authorization: ctx.context.request?.headers.get("authorization"),
+      Authorization: ctx.context.request?.headers.get("Authorization"),
     }),
   },
+  maskedErrors: false,
   plugins: (ctx) => {
     const armorLogger = ctx.logger.child("Armor");
     return [
+      // Disable validation on Mesh side
+      {
+        onValidate(args) {
+          args.setValidationFn(() => []);
+        },
+      },
+      
       useJWT({
         algorithms: ["RS256"],
         issuer: "https://securetoken.google.com/ffxivteamcraft",
@@ -47,6 +55,10 @@ const meshHTTP = createServeRuntime({
           commit: packageInfo.version,
         },
         usage: {
+          clientInfo: {
+            name: "ffxivteamcraft",
+            version: packageInfo.version,
+          },
           sampleRate: 0.1,
         },
       }),
