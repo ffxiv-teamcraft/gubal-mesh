@@ -24,20 +24,18 @@ const meshHTTP = createServeRuntime({
   proxy: {
     endpoint: process.env.UPSTREAM,
     headers: (ctx) => ({
-      Authorization: ctx.context.request?.headers.get("Authorization"),
+      Authorization: ctx.context.request
+        ? ctx.context.request.headers.get("Authorization")
+        : undefined,
+      "x-hasura-admin-secret": ctx.context.request
+        ? undefined
+        : process.env.HASURA_ADMIN_SECRET,
     }),
   },
   maskedErrors: false,
   plugins: (ctx) => {
     const armorLogger = ctx.logger.child("Armor");
     return [
-      // Disable validation on Mesh side
-      {
-        onValidate(args) {
-          args.setValidationFn(() => []);
-        },
-      },
-      
       useJWT({
         algorithms: ["RS256"],
         issuer: "https://securetoken.google.com/ffxivteamcraft",
