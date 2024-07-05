@@ -65,6 +65,7 @@ const meshHTTP = createServeRuntime({
         sessionId: null, // Global cache
         includeExtensionMetadata: true,
         ttl: 10 * 60 * 1000,
+        ignoredTypes: ['allagan_reports', 'allagan_reports_aggregate', 'allagan_reports_queue', 'allagan_reports_queue_aggregate', 'allagan_reports_queue_per_item']
       }),
       EnvelopArmorPlugin({
         maxDepth: {
