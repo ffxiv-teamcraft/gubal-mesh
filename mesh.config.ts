@@ -21,7 +21,7 @@ export const serveConfig = defineConfig({
   cache: new LocalforageCache(),
   pubsub: new PubSub(),
   landingPage: false,
-  graphqlEndpoint: "/",
+  graphqlEndpoint: "/graphql",
   proxy: {
     endpoint: upstream.toString(),
     headers: (ctx) => {
@@ -43,11 +43,7 @@ export const serveConfig = defineConfig({
         // Forward all non-graphql requests to the upstream Hasura instance for dashboard and direct access
         async onRequest({request, endResponse, url}) {
           try {
-            if (
-              url.pathname !== '/graphql'
-              // To avoid giving access to the Hasura graphql endpoint to everyone, we require the admin secret
-              && request.headers.get('x-hasura-admin-secret') === process.env.HASURA_ADMIN_SECRET
-            ) {
+            if (url.pathname !== '/graphql') {
               endResponse(await fetch(upstream.origin + url.pathname + url.search, request))
             }
           } catch (e) {
@@ -83,6 +79,7 @@ export const serveConfig = defineConfig({
         cache: ctx.cache!,
         includeExtensionMetadata: true,
         ttl: 10 * 60 * 1000,
+        ignoredTypes: ['allagan_reports', 'allagan_reports_aggregate', 'allagan_reports_queue', 'allagan_reports_queue_aggregate', 'allagan_reports_queue_per_item']
       }),
       EnvelopArmorPlugin({
         maxDepth: {
