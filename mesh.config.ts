@@ -11,6 +11,8 @@ if (!process.env.UPSTREAM) {
   throw new Error("UPSTREAM is required");
 }
 
+const upstream = new URL(process.env.UPSTREAM);
+
 if (!process.env.HIVE_TOKEN) {
   throw new Error("HIVE_TOKEN is required");
 }
@@ -21,7 +23,7 @@ export const serveConfig = defineConfig({
   landingPage: false,
   graphqlEndpoint: "/",
   proxy: {
-    endpoint: process.env.UPSTREAM,
+    endpoint: upstream.toString(),
     headers: (ctx) => {
       const headers = {};
       if (ctx?.context.request) {
@@ -37,6 +39,22 @@ export const serveConfig = defineConfig({
   plugins: (ctx) => {
     const armorLogger = ctx.logger.child("Armor");
     return [
+      {
+        // Forward all non-graphql requests to the upstream Hasura instance for dashboard and direct access
+        async onRequest({request, endResponse, url}) {
+          try {
+            if (
+              url.pathname !== '/graphql'
+              // To avoid giving access to the Hasura graphql endpoint to everyone, we require the admin secret
+              && request.headers.get('x-hasura-admin-secret') === process.env.HASURA_ADMIN_SECRET
+            ) {
+              endResponse(await fetch(upstream.origin + url.pathname + url.search, request))
+            }
+          } catch (e) {
+            ctx.logger.error('Failed to forward request to Hasura:', e);
+          }
+        },
+      },
       useJWT({
         algorithms: ["RS256"],
         issuer: "https://securetoken.google.com/ffxivteamcraft",
