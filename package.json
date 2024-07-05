@@ -6,19 +6,21 @@
   "private": true,
   "main": "./index.js",
   "scripts": {
-    "deploy": "gcloud functions deploy graphql --gen2 --runtime=nodejs20 --source=. --trigger-http --allow-unauthenticated"
+    "deploy": "gcloud functions deploy graphql --gen2 --runtime=nodejs20 --source=. --trigger-http --allow-unauthenticated",
+    "start": "mesh-serve"
   },
   "dependencies": {
     "@escape.tech/graphql-armor": "^3.0.0",
-    "@google-cloud/functions-framework": "^3.4.0",
     "@graphql-mesh/cache-localforage": "^0.98.9",
     "@graphql-mesh/plugin-hive": "^0.98.11",
+    "@graphql-mesh/plugin-prometheus": "^0.101.4",
     "@graphql-mesh/plugin-response-cache": "^0.98.10",
-    "@graphql-mesh/serve-runtime": "^0.4.3",
+    "@graphql-mesh/serve-cli": "^0.6.4",
     "@graphql-mesh/utils": "^0.98.9",
     "@graphql-yoga/plugin-jwt": "^2.4.0",
-    "@types/node": "^20.10.6",
-    "graphql": "^16.8.1",
+    "graphql": "^16.9.0"
+  },
+  "devDependencies": {
     "prettier": "^3.3.2",
     "typescript": "^5.4.2"
   },
