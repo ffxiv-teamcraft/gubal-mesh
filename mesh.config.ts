@@ -30,10 +30,15 @@ export const serveConfig = defineConfig({
       return new Response("Unauthorized", { status: 401 });
     }
 
-    return fetch(upstream.origin + url.pathname + url.search, {
-      method: request.method,
-      body: request.body,
-      headers: Object.fromEntries(request.headers.entries()),
+    const responseUpstream = await fetch(
+      upstream.origin + url.pathname ?? "" + url.search ?? ""
+    );
+    return new Response(responseUpstream.body, {
+      status: responseUpstream.status,
+      statusText: responseUpstream.statusText,
+      headers: [...responseUpstream.headers.entries()].filter(
+        ([key]) => key !== "transfer-encoding"
+      ),
     });
   },
   proxy: {
@@ -81,7 +86,13 @@ export const serveConfig = defineConfig({
         cache: ctx.cache!,
         includeExtensionMetadata: true,
         ttl: 10 * 60 * 1000,
-        ignoredTypes: ['allagan_reports', 'allagan_reports_aggregate', 'allagan_reports_queue', 'allagan_reports_queue_aggregate', 'allagan_reports_queue_per_item']
+        ignoredTypes: [
+          "allagan_reports",
+          "allagan_reports_aggregate",
+          "allagan_reports_queue",
+          "allagan_reports_queue_aggregate",
+          "allagan_reports_queue_per_item",
+        ],
       }),
       EnvelopArmorPlugin({
         maxDepth: {
