@@ -85,7 +85,7 @@ export const serveConfig = defineConfig({
       useMeshResponseCache({
         cache: ctx.cache!,
         includeExtensionMetadata: true,
-        ttl: 1 * 60 * 1000,
+        ttl: 10 * 60 * 1000,
         ignoredTypes: [
           "allagan_reports",
           "allagan_reports_aggregate",
