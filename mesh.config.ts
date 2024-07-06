@@ -85,7 +85,7 @@ export const serveConfig = defineConfig({
       useMeshResponseCache({
         cache: ctx.cache!,
         includeExtensionMetadata: true,
-        ttl: 10 * 60 * 1000,
+        ttl: 1 * 60 * 1000,
         ignoredTypes: [
           "allagan_reports",
           "allagan_reports_aggregate",
@@ -93,6 +93,16 @@ export const serveConfig = defineConfig({
           "allagan_reports_queue_aggregate",
           "allagan_reports_queue_per_item",
         ],
+        ttlPerCoordinate: [
+          {
+            coordinate: 'query_root.allagan_reports',
+            ttl: 1
+          },
+          {
+            coordinate: 'query_root.allagan_reports_queue',
+            ttl: 1
+          }
+        ]
       }),
       EnvelopArmorPlugin({
         maxDepth: {
