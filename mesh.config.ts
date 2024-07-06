@@ -20,8 +20,27 @@ if (!process.env.HIVE_TOKEN) {
 export const serveConfig = defineConfig({
   cache: new LocalforageCache(),
   pubsub: new PubSub(),
-  landingPage: false,
-  graphqlEndpoint: "/graphql",
+  // @ts-expect-error MeshConfig has a missing type union, you can actually provide an http handler
+  landingPage: async ({ url, request }) => {
+    if (
+      url.pathname === "/v1/graphql" &&
+      request.headers.get("x-hasura-admin-secret") !==
+        process.env.HASURA_ADMIN_SECRET
+    ) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    const responseUpstream = await fetch(
+      upstream.origin + url.pathname ?? "" + url.search ?? ""
+    );
+    return new Response(responseUpstream.body, {
+      status: responseUpstream.status,
+      statusText: responseUpstream.statusText,
+      headers: [...responseUpstream.headers.entries()].filter(
+        ([key]) => key !== "transfer-encoding"
+      ),
+    });
+  },
   proxy: {
     endpoint: upstream.toString(),
     headers: (ctx) => {
@@ -39,18 +58,6 @@ export const serveConfig = defineConfig({
   plugins: (ctx) => {
     const armorLogger = ctx.logger.child("Armor");
     return [
-      {
-        // Forward all non-graphql requests to the upstream Hasura instance for dashboard and direct access
-        async onRequest({request, endResponse, url}) {
-          try {
-            if (url.pathname !== '/graphql') {
-              endResponse(await fetch(upstream.origin + url.pathname + url.search, request))
-            }
-          } catch (e) {
-            ctx.logger.error('Failed to forward request to Hasura:', e);
-          }
-        },
-      },
       useJWT({
         algorithms: ["RS256"],
         issuer: "https://securetoken.google.com/ffxivteamcraft",
@@ -79,7 +86,13 @@ export const serveConfig = defineConfig({
         cache: ctx.cache!,
         includeExtensionMetadata: true,
         ttl: 10 * 60 * 1000,
-        ignoredTypes: ['allagan_reports', 'allagan_reports_aggregate', 'allagan_reports_queue', 'allagan_reports_queue_aggregate', 'allagan_reports_queue_per_item']
+        ignoredTypes: [
+          "allagan_reports",
+          "allagan_reports_aggregate",
+          "allagan_reports_queue",
+          "allagan_reports_queue_aggregate",
+          "allagan_reports_queue_per_item",
+        ],
       }),
       EnvelopArmorPlugin({
         maxDepth: {
