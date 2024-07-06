@@ -20,8 +20,22 @@ if (!process.env.HIVE_TOKEN) {
 export const serveConfig = defineConfig({
   cache: new LocalforageCache(),
   pubsub: new PubSub(),
-  landingPage: false,
-  graphqlEndpoint: "/graphql",
+  // @ts-expect-error MeshConfig has a missing type union, you can actually provide an http handler
+  landingPage: async ({ url, request }) => {
+    if (
+      url.pathname === "/v1/graphql" &&
+      request.headers.get("x-hasura-admin-secret") !==
+        process.env.HASURA_ADMIN_SECRET
+    ) {
+      return new Response("Unauthorized", { status: 401 });
+    }
+
+    return fetch(upstream.origin + url.pathname + url.search, {
+      method: request.method,
+      body: request.body,
+      headers: Object.fromEntries(request.headers.entries()),
+    });
+  },
   proxy: {
     endpoint: upstream.toString(),
     headers: (ctx) => {
@@ -39,18 +53,6 @@ export const serveConfig = defineConfig({
   plugins: (ctx) => {
     const armorLogger = ctx.logger.child("Armor");
     return [
-      {
-        // Forward all non-graphql requests to the upstream Hasura instance for dashboard and direct access
-        async onRequest({request, endResponse, url}) {
-          try {
-            if (url.pathname !== '/graphql') {
-              endResponse(await fetch(upstream.origin + url.pathname + url.search, request))
-            }
-          } catch (e) {
-            ctx.logger.error('Failed to forward request to Hasura:', e);
-          }
-        },
-      },
       useJWT({
         algorithms: ["RS256"],
         issuer: "https://securetoken.google.com/ffxivteamcraft",
