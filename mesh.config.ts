@@ -29,6 +29,9 @@ export const serveConfig = defineConfig({
       if (ctx?.context.request) {
         headers["Authorization"] =
           ctx.context.request.headers.get("Authorization");
+          if(ctx.context.request.headers.get("x-hasura-admin-secret")) {
+            headers["x-hasura-admin-secret"] = ctx.context.request.headers.get("x-hasura-admin-secret")
+          }          
       } else {
         headers["x-hasura-admin-secret"] = process.env.HASURA_ADMIN_SECRET;
       }
@@ -85,6 +88,7 @@ export const serveConfig = defineConfig({
           "allagan_reports_queue",
           "allagan_reports_queue_aggregate",
           "allagan_reports_queue_per_item",
+          "bnpc"
         ],
         ttlPerCoordinate: [
           {
