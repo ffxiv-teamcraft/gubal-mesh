@@ -3,9 +3,10 @@ import LocalforageCache from "@graphql-mesh/cache-localforage";
 import useHive from "@graphql-mesh/plugin-hive";
 import useMeshResponseCache from "@graphql-mesh/plugin-response-cache";
 import { defineConfig } from "@graphql-mesh/serve-cli";
+import { type MeshServeConfigContext } from "@graphql-mesh/serve-runtime";
 import { PubSub } from "@graphql-mesh/utils";
 import { useJWT } from "@graphql-yoga/plugin-jwt";
-import packageInfo from "./package.json" with { type: "json" };
+import packageInfo from "./package.json";
 
 if (!process.env.UPSTREAM) {
   throw new Error("UPSTREAM is required");
@@ -20,27 +21,7 @@ if (!process.env.HIVE_TOKEN) {
 export const serveConfig = defineConfig({
   cache: new LocalforageCache(),
   pubsub: new PubSub(),
-  // @ts-expect-error MeshConfig has a missing type union, you can actually provide an http handler
-  landingPage: async ({ url, request }) => {
-    if (
-      url.pathname === "/v1/graphql" &&
-      request.headers.get("x-hasura-admin-secret") !==
-        process.env.HASURA_ADMIN_SECRET
-    ) {
-      return new Response("Unauthorized", { status: 401 });
-    }
-
-    const responseUpstream = await fetch(
-      upstream.origin + url.pathname ?? "" + url.search ?? ""
-    );
-    return new Response(responseUpstream.body, {
-      status: responseUpstream.status,
-      statusText: responseUpstream.statusText,
-      headers: [...responseUpstream.headers.entries()].filter(
-        ([key]) => key !== "transfer-encoding"
-      ),
-    });
-  },
+  landingPage: false,
   proxy: {
     endpoint: upstream.toString(),
     headers: (ctx) => {
@@ -58,6 +39,18 @@ export const serveConfig = defineConfig({
   plugins: (ctx) => {
     const armorLogger = ctx.logger.child("Armor");
     return [
+      {
+        async onRequest({ url, request, endResponse }) {
+          // Try catch is important here, because exceptions are not caught by mesh in this hook
+          try {
+            if (shouldForwardToUpstream(url)) {
+              endResponse(await forwardToUpstream(ctx, url, request));
+            }
+          } catch (e) {
+            ctx.logger.error("Error while forwarding request to upstream:", e);
+          }
+        },
+      },
       useJWT({
         algorithms: ["RS256"],
         issuer: "https://securetoken.google.com/ffxivteamcraft",
@@ -130,3 +123,73 @@ export const serveConfig = defineConfig({
     ];
   },
 });
+
+const hasuraPrefixes = ["/console", "/v1", "/v2"];
+function shouldForwardToUpstream(url: URL): boolean {
+  return (
+    url.pathname === "/" ||
+    hasuraPrefixes.some((prefix) => url.pathname.startsWith(prefix))
+  );
+}
+
+const forwardRequestHeaders = [
+  "cache-control",
+  "content-type",
+  "accept",
+  "origin",
+  "accept-encoding",
+  "accept-language",
+  "cookie",
+  "x-request-id",
+  "x-hasura-admin-secret",
+  "authorization",
+];
+const forwardResponseHeaders = [
+  "content-type",
+  "set-cookie",
+  "language",
+  "date",
+  "access-control-allow-origin",
+  "access-control-allow-credentials",
+  "access-control-allow-methods",
+  "access-control-expose-headers",
+  "x-request-id",
+];
+async function forwardToUpstream(
+  ctx: MeshServeConfigContext,
+  url: URL,
+  request: Request
+): Promise<Response> {
+  if (
+    url.pathname === "/v1/graphql" &&
+    request.headers.get("x-hasura-admin-secret") !=
+      process.env.HASURA_ADMIN_SECRET
+  ) {
+    ctx.logger.debug(
+      "Upstream request to /v1/graphql without admin secret, denying."
+    );
+    return new Response("Unauthorized", { status: 401 });
+  }
+
+  const upstreamURL = upstream.origin + url.pathname ?? "" + url.search ?? "";
+  ctx.logger.debug(
+    `Forwarding request to upstream: ${request.method} ${url} => ${upstreamURL}`
+  );
+  const responseUpstream = await fetch(upstreamURL, {
+    method: request.method,
+    headers: [...request.headers.entries()].filter(([key]) =>
+      forwardRequestHeaders.includes(key)
+    ),
+    body: request.body,
+    // @ts-expect-error missing in types, required to forward body as readable stream
+    duplex: "half",
+  });
+
+  return new Response(responseUpstream.body, {
+    status: responseUpstream.status,
+    statusText: responseUpstream.statusText,
+    headers: [...responseUpstream.headers.entries()].filter(([key]) =>
+      forwardResponseHeaders.includes(key)
+    ),
+  });
+}
